@@ -16,7 +16,11 @@ const { Pool } = require('pg'); // PostgreSQL client for Node.js, using a connec
 // Initialize the Express application
 const app = express();
 const PORT = process.env.PORT || 3001; // Port the API server will listen on, defaults to 3001
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret'; // Secret key for signing and verifying JWTs. IMPORTANT: Use a strong, randomly generated secret in production environments and store it securely (e.g., in environment variables).
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET is not defined.');
+  process.exit(1);
+}
 
 // Middleware setup
 // Use bodyParser.json() to parse JSON formatted request bodies.
@@ -41,11 +45,22 @@ pool.connect(err => {
     console.log('Connected to PostgreSQL database'); // Confirm successful database connection
 });
 
-/**
- * Company Registration Endpoint
- * @route POST /company
- * @description Handles new company registration and creates an admin user for the company.
- */
+class AppError extends Error {
+    constructor(message, status) {
+        super(message);
+        this.name = this.constructor.name;
+        this.status = status || 500;
+        Error.captureStackTrace(this, this.constructor);
+    }
+}
+
+const createUser = async (client, username, password, role, companyId) => {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const userSql = 'INSERT INTO users (username, password, role, company_id, status) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, role, company_id';
+    const userValues = [username, hashedPassword, role, companyId, 'active'];
+    const userResult = await client.query(userSql, userValues);
+    return userResult.rows[0];
+};
 /**
  * Middleware for JWT Verification
  * @function authenticateToken
@@ -120,7 +135,7 @@ app.post('/invite', authenticateToken, authorizeRoles('admin'), async (req, res)
         const userCheckResult = await client.query(userCheckSql, [email]);
         if (userCheckResult.rows.length > 0) {
             await client.query('ROLLBACK');
-            return res.status(409).json({ message: 'User with this email already exists' });
+            throw new AppError('User with this email already exists', 409);
         }
 
         // Check if an active invitation for this email already exists
@@ -128,7 +143,7 @@ app.post('/invite', authenticateToken, authorizeRoles('admin'), async (req, res)
         const invitationCheckResult = await client.query(invitationCheckSql, [email]);
         if (invitationCheckResult.rows.length > 0) {
             await client.query('ROLLBACK');
-            return res.status(409).json({ message: 'An active invitation for this email already exists' });
+            throw new AppError('An active invitation for this email already exists', 409);
         }
 
         const invitationToken = crypto.randomBytes(32).toString('hex');
@@ -175,28 +190,23 @@ app.post('/register', async (req, res) => {
         const companyResult = await client.query(companySql, [companyName]);
         const companyId = companyResult.rows[0].id;
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const userSql = 'INSERT INTO users (username, password, role, company_id, status) VALUES ($1, $2, $3, $4, $5) RETURNING id';
-        const userValues = [username, hashedPassword, 'admin', companyId, 'active'];
-        const userResult = await client.query(userSql, userValues);
-        const userId = userResult.rows[0].id;
+        const user = await createUser(client, username, password, 'admin', companyId);
 
         await client.query('COMMIT');
 
         const token = jwt.sign(
-            { id: userId, username: username, role: 'admin', companyId: companyId },
+            { id: user.id, username: user.username, role: user.role, companyId: user.company_id },
             JWT_SECRET,
             { expiresIn: '1h' }
         );
 
-        res.status(201).json({ message: 'Company and admin user registered successfully', userId: userId, companyId: companyId, token });
+        res.status(201).json({ message: 'Company and admin user registered successfully', userId: user.id, companyId: user.company_id, token });
     } catch (error) {
         await client.query('ROLLBACK');
         if (error.code === '23505') {
-            return res.status(409).json({ message: 'Company name or username already exists' });
+            throw new AppError('Company name or username already exists', 409);
         }
-        console.error('Error registering company:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        throw error;
     } finally {
         client.release();
     }
@@ -230,7 +240,7 @@ app.post('/accept-invite', async (req, res) => {
 
         if (invitationResult.rows.length === 0) {
             await client.query('ROLLBACK');
-            return res.status(400).json({ message: 'Invalid or expired invitation token' });
+            throw new AppError('Invalid or expired invitation token', 400);
         }
 
         const invitation = invitationResult.rows[0];
@@ -240,15 +250,10 @@ app.post('/accept-invite', async (req, res) => {
         const userCheckResult = await client.query(userCheckSql, [invitation.email]);
         if (userCheckResult.rows.length > 0) {
             await client.query('ROLLBACK');
-            return res.status(409).json({ message: 'User with this email already exists' });
+            throw new AppError('User with this email already exists', 409);
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const userSql = 'INSERT INTO users (username, password, role, company_id, status) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, role, company_id';
-        const userValues = [invitation.email, hashedPassword, invitation.role, invitation.company_id, 'active'];
-        const userResult = await client.query(userSql, userValues);
-
-        const user = userResult.rows[0];
+        const user = await createUser(client, invitation.email, password, invitation.role, invitation.company_id);
 
         // Delete the invitation after successful registration
         const deleteInvitationSql = 'DELETE FROM invitations WHERE id = $1';
@@ -294,7 +299,7 @@ app.post('/login', async (req, res) => {
 
         // Check if a user with the provided username exists.
         if (rows.length === 0) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+            throw new AppError('Invalid credentials', 401);
         }
 
         const user = rows[0]; // Get the user record from the query result.
@@ -303,7 +308,7 @@ app.post('/login', async (req, res) => {
 
         // If passwords do not match, return an invalid credentials error.
         if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+            throw new AppError('Invalid credentials', 401);
         }
 
         // Generate a JWT for the authenticated user.
@@ -335,8 +340,12 @@ app.use((req, res, next) => {
 
 // Generic error handling middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack); // Log the error stack for debugging
-    res.status(500).json({ message: 'Internal server error' });
+    console.error(err.stack);
+    if (err.status) {
+        res.status(err.status).json({ message: err.message });
+    } else {
+        res.status(500).json({ message: 'Internal server error' });
+    }
 });
 
 app.listen(PORT, () => {

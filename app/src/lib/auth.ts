@@ -40,14 +40,24 @@ export const removeAuthToken = () => {
  * @param {string} token - The JWT token to decode.
  * @returns {any | null} The decoded token payload, or null if decoding fails.
  */
-export const decodeToken = (token: string): any | null => {
+export const verifyToken = async (token: string): Promise<any | null> => {
   try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const decoded = JSON.parse(atob(base64));
+    const response = await fetch('/api/verify-token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const { decoded } = await response.json();
     return decoded;
   } catch (error) {
-    console.error('Error decoding token:', error);
+    console.error('Error verifying token:', error);
     return null;
   }
 };
