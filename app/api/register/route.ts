@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server';
  */
 export async function POST(request: Request) {
   // Extract username, password, and role from the request body.
-  const { username, password, role } = await request.json();
+  const { username, password, role, companyName } = await request.json();
 
   try {
     // Forward the registration request to the backend API.
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       headers: {
         'Content-Type': 'application/json', // Indicate that the request body is JSON.
       },
-      body: JSON.stringify({ username, password, role }), // Send the registration data as a JSON string.
+      body: JSON.stringify({ username, password, role: 'admin', companyName }), // Send the registration data as a JSON string.
     });
 
     // Parse the JSON response from the backend API.

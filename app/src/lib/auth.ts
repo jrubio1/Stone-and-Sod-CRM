@@ -34,3 +34,20 @@ export const removeAuthToken = () => {
   // Remove the cookie named 'token'.
   Cookies.remove('token');
 };
+
+/**
+ * Decodes a JWT token and returns its payload.
+ * @param {string} token - The JWT token to decode.
+ * @returns {any | null} The decoded token payload, or null if decoding fails.
+ */
+export const decodeToken = (token: string): any | null => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(base64));
+    return decoded;
+  } catch (error) {
+    console.error('Error decoding token:', error);
+    return null;
+  }
+};

@@ -8,7 +8,7 @@
 'use client'; // Marks this component as a Client Component, enabling the use of hooks like useState and useEffect.
 
 import { useEffect, useState } from 'react'; // React hooks for side effects and state management.
-import { getAuthToken } from './lib/auth'; // Utility function to retrieve the authentication token from cookies.
+import { getAuthToken } from './src/lib/auth'; // Utility function to retrieve the authentication token from cookies.
 
 /**
  * Main Page Component

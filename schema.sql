@@ -5,4 +5,24 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(50) NOT NULL DEFAULT 'user'
 );
 
+CREATE TABLE IF NOT EXISTS companies (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS invitations (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    company_id INTEGER NOT NULL REFERENCES companies(id),
+    role VARCHAR(50) NOT NULL,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE users
+ADD COLUMN company_id INTEGER REFERENCES companies(id),
+ADD COLUMN invitation_token VARCHAR(255),
+ADD COLUMN status VARCHAR(50) DEFAULT 'pending';
+
 -- Add any other tables here if needed

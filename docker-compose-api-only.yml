@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgres://user:password@db:5432/stone_sod_crm
+      NEXT_PUBLIC_URL: http://nextjs:3000
+    volumes:
+      - ./api:/app

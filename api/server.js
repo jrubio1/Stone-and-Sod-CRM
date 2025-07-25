@@ -6,6 +6,7 @@
  */
 
 // Core module imports
+const crypto = require('crypto');
 const express = require('express'); // Express.js framework for building web applications
 const bodyParser = require('body-parser'); // Middleware to parse incoming request bodies
 const jwt = require('jsonwebtoken'); // Library for working with JSON Web Tokens (JWTs)
@@ -41,54 +42,233 @@ pool.connect(err => {
 });
 
 /**
- * User Registration Endpoint
- * @route POST /register
- * @description Handles new user registration. It hashes the user's password before storing it
- *              in the database and issues a JWT upon successful registration.
+ * Company Registration Endpoint
+ * @route POST /company
+ * @description Handles new company registration and creates an admin user for the company.
  */
-app.post('/register', async (req, res) => {
-    // Extract username, password, and optional role from the request body.
-    const { username, password, role } = req.body;
+/**
+ * Middleware for JWT Verification
+ * @function authenticateToken
+ * @description This middleware verifies the authenticity of a JWT provided in the
+ *              'Authorization' header. If the token is valid, it decodes the user
+ *              information and attaches it to the request object (req.user).
+ *              Otherwise, it sends appropriate error responses (401 for no token,
+ *              403 for invalid token).
+ */
+const authenticateToken = (req, res, next) => {
+    // Extract the 'Authorization' header from the request.
+    const authHeader = req.headers['authorization'];
+    // Extract the token from the header (format: "Bearer <token>").
+    const token = authHeader && authHeader.split(' ')[1];
 
-    // Validate input: Ensure username and password are provided.
-    if (!username || !password) {
-        return res.status(400).json({ message: 'Username and password are required' });
+    // If no token is provided, send a 401 Unauthorized status.
+    if (token == null) return res.sendStatus(401); // No token
+
+    // Verify the token using the JWT_SECRET.
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        // If verification fails (e.g., token is expired or invalid), send a 403 Forbidden status.
+        if (err) return res.sendStatus(403); // Invalid token
+        // If verification is successful, attach the decoded user payload to the request object.
+        req.user = user;
+        // Proceed to the next middleware or route handler.
+        next();
+    });
+};
+
+/**
+ * Middleware for Role-Based Access Control (RBAC)
+ * @function authorizeRoles
+ * @param {...string} roles - A list of roles that are allowed to access the route.
+ * @description This middleware checks if the authenticated user (from req.user, set by authenticateToken)
+ *              has one of the specified allowed roles. If the user does not have the required role,
+ *              it sends a 403 Forbidden response.
+ */
+const authorizeRoles = (...roles) => {
+    return (req, res, next) => {
+        // Check if user information is available (meaning authenticateToken ran successfully)
+        // and if the user's role is included in the list of allowed roles.
+        if (!req.user || !roles.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
+        }
+        // If the user has the required role, proceed to the next middleware or route handler.
+        next();
+    };
+};
+
+
+
+/**
+ * User Invitation Endpoint
+ * @route POST /invite
+ * @description Allows an admin to invite a new user to their company.
+ */
+app.post('/invite', authenticateToken, authorizeRoles('admin'), async (req, res) => {
+    console.log('Received invitation request');
+    const { email, role } = req.body;
+    const { companyId } = req.user;
+
+    if (!email || !role) {
+        return res.status(400).json({ message: 'Email and role are required' });
     }
 
+    const client = await pool.connect();
     try {
-        // Hash the user's password for security.
-        // bcrypt.hash() is an asynchronous function that generates a salt and hashes the password.
-        const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds, a higher number increases security but takes more time.
+        await client.query('BEGIN');
 
-        // SQL query to insert a new user into the 'users' table.
-        // $1, $2, $3 are placeholders for parameterized queries to prevent SQL injection.
-        // RETURNING id fetches the newly generated user ID.
-        const sql = 'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id';
-        // Values to be inserted: username, hashed password, and role (defaults to 'user' if not provided).
-        const values = [username, hashedPassword, role || 'user'];
-        // Execute the SQL query using the connection pool.
-        const result = await pool.query(sql, values);
-        const userId = result.rows[0].id; // Extract the new user's ID from the query result.
-
-        // Generate a JSON Web Token (JWT) for the newly registered user.
-        // The token contains user information (id, username, role) and is signed with JWT_SECRET.
-        // It expires in 1 hour ('1h').
-        const token = jwt.sign(
-            { id: userId, username: username, role: role || 'user' },
-            JWT_SECRET,
-            { expiresIn: '1h' } // Token expiration time
-        );
-        // Send a success response with a message, user ID, and the generated token.
-        res.status(201).json({ message: 'User registered successfully', userId: userId, token });
-    } catch (error) {
-        // Error handling for registration.
-        // Check for a unique violation error (PostgreSQL error code '23505') which indicates a duplicate username.
-        if (error.code === '23505') {
-            return res.status(409).json({ message: 'Username already exists' });
+        // Check if a user with this email already exists
+        const userCheckSql = 'SELECT id FROM users WHERE username = $1';
+        const userCheckResult = await client.query(userCheckSql, [email]);
+        if (userCheckResult.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ message: 'User with this email already exists' });
         }
-        // Log other unexpected errors and send a generic internal server error response.
-        console.error('Error registering user:', error);
+
+        // Check if an active invitation for this email already exists
+        const invitationCheckSql = 'SELECT id FROM invitations WHERE email = $1 AND expires_at > NOW()';
+        const invitationCheckResult = await client.query(invitationCheckSql, [email]);
+        if (invitationCheckResult.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ message: 'An active invitation for this email already exists' });
+        }
+
+        const invitationToken = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+        const sql = 'INSERT INTO invitations (email, company_id, role, token, expires_at) VALUES ($1, $2, $3, $4, $5) RETURNING id';
+        const values = [email, companyId, role, invitationToken, expiresAt];
+        await client.query(sql, values);
+
+        await client.query('COMMIT');
+
+        // In a real application, you would send an email with this link
+        const invitationLink = `${process.env.NEXT_PUBLIC_URL}/register?token=${invitationToken}`;
+        console.log(`Invitation link for ${email}: ${invitationLink}`);
+
+        res.status(200).json({ message: 'Invitation sent successfully' });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error sending invitation:', error);
         res.status(500).json({ message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/**
+ * Company and Admin User Registration Endpoint
+ * @route POST /register
+ * @description Handles new company registration and creates an admin user for the company.
+ */
+app.post('/register', async (req, res) => {
+    const { companyName, username, password } = req.body;
+
+    if (!companyName || !username || !password) {
+        return res.status(400).json({ message: 'Company name, username, and password are required' });
+    }
+
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const companySql = 'INSERT INTO companies (name) VALUES ($1) RETURNING id';
+        const companyResult = await client.query(companySql, [companyName]);
+        const companyId = companyResult.rows[0].id;
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const userSql = 'INSERT INTO users (username, password, role, company_id, status) VALUES ($1, $2, $3, $4, $5) RETURNING id';
+        const userValues = [username, hashedPassword, 'admin', companyId, 'active'];
+        const userResult = await client.query(userSql, userValues);
+        const userId = userResult.rows[0].id;
+
+        await client.query('COMMIT');
+
+        const token = jwt.sign(
+            { id: userId, username: username, role: 'admin', companyId: companyId },
+            JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        res.status(201).json({ message: 'Company and admin user registered successfully', userId: userId, companyId: companyId, token });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        if (error.code === '23505') {
+            return res.status(409).json({ message: 'Company name or username already exists' });
+        }
+        console.error('Error registering company:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/**
+ * User Login Endpoint
+ * @route POST /login
+ * @description Authenticates a user by verifying their username and password.
+ *              Issues a JWT upon successful authentication.
+ */
+/**
+ * Accept Invitation Endpoint
+ * @route POST /accept-invite
+ * @description Handles user registration via invitation token.
+ */
+app.post('/accept-invite', async (req, res) => {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+        return res.status(400).json({ message: 'Token and password are required' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Find the invitation
+        const invitationSql = 'SELECT * FROM invitations WHERE token = $1 AND expires_at > NOW()';
+        const invitationResult = await client.query(invitationSql, [token]);
+
+        if (invitationResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: 'Invalid or expired invitation token' });
+        }
+
+        const invitation = invitationResult.rows[0];
+
+        // Check if a user with this email already exists
+        const userCheckSql = 'SELECT id FROM users WHERE username = $1';
+        const userCheckResult = await client.query(userCheckSql, [invitation.email]);
+        if (userCheckResult.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ message: 'User with this email already exists' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const userSql = 'INSERT INTO users (username, password, role, company_id, status) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, role, company_id';
+        const userValues = [invitation.email, hashedPassword, invitation.role, invitation.company_id, 'active'];
+        const userResult = await client.query(userSql, userValues);
+
+        const user = userResult.rows[0];
+
+        // Delete the invitation after successful registration
+        const deleteInvitationSql = 'DELETE FROM invitations WHERE id = $1';
+        await client.query(deleteInvitationSql, [invitation.id]);
+
+        await client.query('COMMIT');
+
+        const jwtToken = jwt.sign(
+            { id: user.id, username: user.username, role: user.role, companyId: user.company_id },
+            JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        res.status(200).json({ message: 'User registered successfully', userId: user.id, token: jwtToken });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error accepting invitation:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    } finally {
+        client.release();
     }
 });
 
@@ -144,86 +324,21 @@ app.post('/login', async (req, res) => {
     }
 });
 
-/**
- * Middleware for JWT Verification
- * @function authenticateToken
- * @description This middleware verifies the authenticity of a JWT provided in the
- *              'Authorization' header. If the token is valid, it decodes the user
- *              information and attaches it to the request object (req.user).
- *              Otherwise, it sends appropriate error responses (401 for no token,
- *              403 for invalid token).
- */
-const authenticateToken = (req, res, next) => {
-    // Extract the 'Authorization' header from the request.
-    const authHeader = req.headers['authorization'];
-    // Extract the token from the header (format: "Bearer <token>").
-    const token = authHeader && authHeader.split(' ')[1];
-
-    // If no token is provided, send a 401 Unauthorized status.
-    if (token == null) return res.sendStatus(401); // No token
-
-    // Verify the token using the JWT_SECRET.
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        // If verification fails (e.g., token is expired or invalid), send a 403 Forbidden status.
-        if (err) return res.sendStatus(403); // Invalid token
-        // If verification is successful, attach the decoded user payload to the request object.
-        req.user = user;
-        // Proceed to the next middleware or route handler.
-        next();
-    });
-};
-
-/**
- * Middleware for Role-Based Access Control (RBAC)
- * @function authorizeRoles
- * @param {...string} roles - A list of roles that are allowed to access the route.
- * @description This middleware checks if the authenticated user (from req.user, set by authenticateToken)
- *              has one of the specified allowed roles. If the user does not have the required role,
- *              it sends a 403 Forbidden response.
- */
-const authorizeRoles = (...roles) => {
-    return (req, res, next) => {
-        // Check if user information is available (meaning authenticateToken ran successfully)
-        // and if the user's role is included in the list of allowed roles.
-        if (!req.user || !roles.includes(req.user.role)) {
-            return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
-        }
-        // If the user has the required role, proceed to the next middleware or route handler.
-        next();
-    };
-};
-
-/**
- * Protected Route Example
- * @route GET /protected
- * @description An example route that requires JWT authentication. Any authenticated user can access this.
- */
-app.get('/protected', authenticateToken, (req, res) => {
-    // Respond with a personalized message using the authenticated user's username.
-    res.json({ message: `Welcome, ${req.user.username}! You have access to protected data.` });
+app.get('/', (req, res) => {
+    res.status(200).json({ message: 'API is running' });
 });
 
-/**
- * Admin-only Route Example
- * @route GET /admin
- * @description An example route that requires the user to have the 'admin' role.
- */
-app.get('/admin', authenticateToken, authorizeRoles('admin'), (req, res) => {
-    // Respond with a message indicating admin-only access.
-    res.json({ message: `Welcome, Admin ${req.user.username}! This is an admin-only area.` });
+// Catch-all for 404 Not Found errors
+app.use((req, res, next) => {
+    res.status(404).json({ message: 'Route not found' });
 });
 
-/**
- * Manager-only Route Example
- * @route GET /manager
- * @description An example route that requires the user to have either the 'manager' or 'admin' role.
- */
-app.get('/manager', authenticateToken, authorizeRoles('manager', 'admin'), (req, res) => {
-    // Respond with a message indicating manager-only access.
-    res.json({ message: `Welcome, Manager ${req.user.username}! This is a manager-only area.` });
+// Generic error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack); // Log the error stack for debugging
+    res.status(500).json({ message: 'Internal server error' });
 });
 
-// Start the server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

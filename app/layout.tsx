@@ -6,7 +6,7 @@
  */
 
 import './globals.css'; // Import global CSS styles, typically for Tailwind CSS or other global styling.
-import Link from 'next/link'; // Next.js Link component for client-side navigation between routes.
+import Navbar from './src/components/layout/Navbar';
 
 /**
  * Metadata for the application.
@@ -27,12 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en"> {/* Defines the HTML document with English language. */}
       <body>
-        <nav> {/* Navigation bar for easy access to key routes. */}
-          <Link href="/login">Login</Link> | {/* Link to the login page. */}
-          <Link href="/register">Register</Link> | {/* Link to the registration page. */}
-          <Link href="/dashboard">Dashboard (Protected)</Link> {/* Link to the protected dashboard page. */}
-        </nav>
-        {children} {/* This prop renders the current page content. */}
+        <Navbar />
+        {children}
       </body>
     </html>
   );

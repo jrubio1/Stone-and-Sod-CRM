@@ -7,7 +7,7 @@
 
 import { NextResponse } from 'next/server'; // Import NextResponse for redirecting and rewriting responses.
 import type { NextRequest } from 'next/server'; // Import NextRequest for type-checking the request object.
-import { getAuthToken } from '@/lib/auth'; // Utility function to retrieve the authentication token from cookies.
+import { getAuthToken } from './app/src/lib/auth'; // Utility function to retrieve the authentication token from cookies.
 
 /**
  * The main middleware function that executes for configured routes.
@@ -21,7 +21,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Define an array of routes that require authentication (protected routes).
-  const protectedRoutes = ['/dashboard']; // Add other protected routes here as needed.
+  const protectedRoutes = ['/dashboard', '/invite']; // Add other protected routes here as needed.
 
   // Logic to redirect to the login page if a user tries to access a protected route without a token.
   if (protectedRoutes.includes(pathname) && !token) {
@@ -46,5 +46,5 @@ export function middleware(request: NextRequest) {
  * It uses a regex-like syntax to match routes.
  */
 export const config = {
-  matcher: ['/dashboard', '/login', '/register'], // Apply middleware to /dashboard, /login, and /register paths.
+  matcher: ['/dashboard', '/login', '/register', '/invite'], // Apply middleware to /dashboard, /login, /register, and /invite paths.
 };

@@ -13,6 +13,11 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d stone_sod_crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
@@ -23,28 +28,23 @@ services:
       - "3001:3001"
     environment:
       DATABASE_URL: postgres://user:password@db:5432/stone_sod_crm
+      NEXT_PUBLIC_URL: http://nextjs:3000
     depends_on:
-      - db
-    volumes:
-      - ./api:/app
-      - api_node_modules:/app/node_modules
+      db:
+        condition: service_started
+    
 
-  nextjs-app:
+  nextjs:
     build:
       context: .
       dockerfile: Dockerfile.nextjs
     restart: always
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://api:3001
     depends_on:
-      - api
-    volumes:
-      - .:/app
-      - nextjs_node_modules:/app/node_modules
+      api:
+        condition: service_started
+    
 
 volumes:
   db_data:
-  api_node_modules:
-  nextjs_node_modules:
