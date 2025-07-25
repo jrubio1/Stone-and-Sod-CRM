@@ -1,0 +1,61 @@
+Session Summary - July 25, 2025
+
+**Issues Encountered & Debugging Steps:**
+
+1.  **Initial Project Structure Review:**
+    *   Identified redundant `package.json` files in `api/` and `app/` directories.
+    *   Noted duplicate `js-cookie` dependency.
+    *   Noted presence of both `bcrypt` and `bcryptjs` in `api/package.json`.
+    *   Identified hardcoded `JWT_SECRET` in `api/server.js`.
+    *   Identified insecure `decodeToken` function in `app/src/lib/auth.ts` (client-side JWT decoding without verification).
+
+2.  **Initial Refactoring & Consolidation:**
+    *   Consolidated `package.json` dependencies into the root `package.json`.
+    *   Removed `package.json` and `package-lock.json` from `api/` and `app/` directories.
+    *   Updated `api/server.js` to exit if `JWT_SECRET` is not defined.
+    *   Created `/api/verify-token/route.ts` for server-side JWT verification.
+    *   Updated `app/src/lib/auth.ts` to use the new `/api/verify-token` endpoint.
+    *   Refactored `createUser` function in `api/server.js` to reduce code duplication in `/register` and `/accept-invite` routes.
+    *   Updated `schema.sql` to define table schema completely in `CREATE TABLE` statements.
+
+3.  **Dockerization & Deployment Issues:**
+    *   Encountered `docker-compose up` failures due to incorrect paths in `Dockerfile.api` and `Dockerfile.nextjs` after `package.json` consolidation.
+    *   Corrected `Dockerfile.api` to copy `package.json` and `package-lock.json` from the root.
+    *   Corrected `Dockerfile.nextjs` to copy `public` directory from the root.
+    *   Resolved `ECONNREFUSED` error by adding `healthcheck` to `api` service in `docker-compose.yml` and ensuring `nextjs` service depends on `api` being healthy.
+    *   Addressed `SyntaxError: Identifier 'AppError' has already been declared` by removing duplicate `AppError` class definitions in `api/server.js`.
+    *   Added explicit `console.error` logging in `api/server.js` route `catch` blocks and global `unhandledRejection`/`uncaughtException` handlers to capture errors.
+    *   Added `test-db` route to confirm database connectivity.
+
+**Latest Debugging Attempts & Current State:**
+
+*   **API Logs Still Clean:** Despite frontend "Internal Server Error" and "fetch failed" messages during registration/login, the API container logs (`docker logs stone-and-sod-crm-api-1`) remain clean, showing only "Server running on port 3001" and "Connected to PostgreSQL database."
+*   **Frontend Error Details:** The frontend's network tab shows a 500 Internal Server Error for `http://localhost:3000/api/register`.
+*   **Database Connectivity Confirmed:** The `/test-db` route successfully returned `{"message":"Database test successful","time":"..."}`, confirming the API can connect to the PostgreSQL database.
+*   **Debugging with Interactive Container:** Attempted to run the API container in interactive mode (`docker run -it`) to capture direct console output, but this was cancelled by the user.
+*   **Conclusion:** The persistent lack of specific errors in the API logs, despite frontend errors, strongly suggests the issue lies within the application logic of the API's authentication/registration routes (e.g., SQL queries, data processing, bcrypt operations) where errors might be caught and re-thrown generically, or the application is crashing in a way that prevents logs from being written to standard output.
+
+**New Strategy: Single-Company Application Focus**
+
+Given the persistent debugging challenges and the decision to simplify the application scope, we will proceed with the following:
+
+1.  **Database Schema Simplification:**
+    *   `schema.sql` has already been updated to remove the `companies` table and `company_id` columns from `users` and `invitations`. This simplifies the data model significantly.
+
+2.  **API Logic Simplification (`api/server.js`):**
+    *   **Remove `companyId` from all API routes and logic:** The `companyId` parameter in `createUser`, `/invite`, `/register`, and `/accept-invite` will be removed.
+    *   **Simplify registration:** The `/register` endpoint will no longer create a company; it will directly create a user.
+    *   **Simplify invitation:** The `/invite` endpoint will no longer require `companyId` in the request body or `req.user`.
+    *   **Adjust JWT payload:** The `companyId` will be removed from the JWT payload.
+    *   **Remove `authorizeRoles` middleware:** Since there's no multi-tenancy, the role-based access control based on `companyId` is no longer strictly necessary for the core functionality, though basic role checks can remain if desired for user types (admin/user).
+
+3.  **Frontend Component Simplification:**
+    *   **Remove company-related inputs:** The registration form will no longer ask for `companyName`.
+    *   **Adjust API calls:** Frontend calls to `/api/register` and `/api/invite` will no longer send `companyName` or `companyId`.
+
+4.  **Re-evaluate Error Handling:**
+    *   With the simplified logic, we'll re-test registration and login. The current detailed error logging in `api/server.js` should now provide clearer insights into any remaining issues related to the simplified logic.
+    *   Consider adding more specific logging within the `pg` query execution blocks if generic errors persist.
+    *   Ensure all `try...catch` blocks in API routes are correctly re-throwing errors to the main error handling middleware using `next(error)`.
+
+This streamlined approach will reduce complexity and help us isolate the root cause of the persistent internal server errors more effectively.
