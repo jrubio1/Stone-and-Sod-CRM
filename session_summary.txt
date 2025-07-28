@@ -1,131 +1,16 @@
-Session Summary - July 25, 2025
 
-**Issues Encountered & Debugging Steps:**
-
-1.  **Initial Project Structure Review:**
-    *   Identified redundant `package.json` files in `api/` and `app/` directories.
-    *   Noted duplicate `js-cookie` dependency.
-    *   Noted presence of both `bcrypt` and `bcryptjs` in `api/package.json`.
-    *   Identified hardcoded `JWT_SECRET` in `api/server.js`.
-    *   Identified insecure `decodeToken` function in `app/src/lib/auth.ts` (client-side JWT decoding without verification).
-
-2.  **Initial Refactoring & Consolidation:**
-    *   Consolidated `package.json` dependencies into the root `package.json`.
-    *   Removed `package.json` and `package-lock.json` from `api/` and `app/` directories.
-    *   Updated `api/server.js` to exit if `JWT_SECRET` is not defined.
-    *   Created `/api/verify-token/route.ts` for server-side JWT verification.
-    *   Updated `app/src/lib/auth.ts` to use the new `/api/verify-token` endpoint.
-    *   Refactored `createUser` function in `api/server.js` to reduce code duplication in `/register` and `/accept-invite` routes.
-    *   Updated `schema.sql` to define table schema completely in `CREATE TABLE` statements.
-
-3.  **Dockerization & Deployment Issues:**
-    *   Encountered `docker-compose up` failures due to incorrect paths in `Dockerfile.api` and `Dockerfile.nextjs` after `package.json` consolidation.
-    *   Corrected `Dockerfile.api` to copy `package.json` and `package-lock.json` from the root.
-    *   Corrected `Dockerfile.nextjs` to copy `public` directory from the root.
-    *   Resolved `ECONNREFUSED` error by adding `healthcheck` to `api` service in `docker-compose.yml` and ensuring `nextjs` service depends on `api` being healthy.
-    *   Addressed `SyntaxError: Identifier 'AppError' has already been declared` by removing duplicate `AppError` class definitions in `api/server.js`.
-    *   Added explicit `console.error` logging in `api/server.js` route `catch` blocks and global `unhandledRejection`/`uncaughtException` handlers to capture errors.
-    *   Added `test-db` route to confirm database connectivity.
-
-**Latest Debugging Attempts & Current State:**
-
-*   **API Logs Still Clean:** Despite frontend "Internal Server Error" and "fetch failed" messages during registration/login, the API container logs (`docker logs stone-and-sod-crm-api-1`) remain clean, showing only "Server running on port 3001" and "Connected to PostgreSQL database."
-*   **Frontend Error Details:** The frontend's network tab shows a 500 Internal Server Error for `http://localhost:3000/api/register`.
-*   **Database Connectivity Confirmed:** The `/test-db` route successfully returned `{"message":"Database test successful","time":"..."}`, confirming the API can connect to the PostgreSQL database.
-*   **Debugging with Interactive Container:** Attempted to run the API container in interactive mode (`docker run -it`) to capture direct console output, but this was cancelled by the user.
-*   **Conclusion:** The persistent lack of specific errors in the API logs, despite frontend errors, strongly suggests the issue lies within the application logic of the API's authentication/registration routes (e.g., SQL queries, data processing, bcrypt operations) where errors might be caught and re-thrown generically, or the application is crashing in a way that prevents logs from being written to standard output.
-
-**New Strategy: Single-Company Application Focus**
-
-Given the persistent debugging challenges and the decision to simplify the application scope, we will proceed with the following:
-
-1.  **Database Schema Simplification:**
-    *   `schema.sql` has already been updated to remove the `companies` table and `company_id` columns from `users` and `invitations`. This simplifies the data model significantly.
-
-2.  **API Logic Simplification (`api/server.js`):**
-    *   **Removed `companyId` from all API routes and logic:** The `companyId` parameter in `createUser`, `/invite`, `/register`, and `/accept-invite` has been removed.
-    *   **Removed registration:** The `/register` endpoint and related frontend components have been removed.
-    *   **Removed invitation:** The `/invite` and `/accept-invite` endpoints and related frontend components have been removed.
-    *   **Adjusted JWT payload:** The `companyId` has been removed from the JWT payload.
-    *   **Removed `authorizeRoles` middleware:** Since there's no multi-tenancy, the role-based access control based on `companyId` is no longer strictly necessary for the core functionality.
-
-3.  **Frontend Component Simplification:**
-    *   **Removed company-related inputs:** The registration form no longer asks for `companyName`.
-    *   **Adjusted API calls:** Frontend calls to `/api/register` and `/api/invite` no longer send `companyName` or `companyId`.
-    *   **UI Cleanup:** Removed "Register Company" and "Accept Invite" links from the Navbar. Added a "Logout" button to the Navbar and made the "Login" link conditional. Removed extra logout button from Dashboard.
-
-4.  **Login Troubleshooting & Resolution:**
-    *   **Initial "fetch failed" error:** Debugged by adding granular logging to `api/server.js` and simplifying the API server to isolate the issue.
-    *   **`EADDRINUSE` error:** Identified that the API server was indeed running, but the frontend couldn't connect due to a Docker networking configuration issue.
-    *   **`MODULE_NOT_FOUND` for `server.js`:** Resolved by correctly copying `api/server.js` into the Docker image in `Dockerfile.api`.
-    *   **Incorrect `NEXT_PUBLIC_API_URL`:** Fixed by passing `NEXT_PUBLIC_API_URL` as a build argument to the Next.js Dockerfile, ensuring it's correctly inlined during the build process.
-    *   **Database User Issue:** Confirmed that the `admin` user was not present in the database. Enabled `pgcrypto` extension and successfully inserted the `admin` user with password `admin`.
-
-**Current Status:**
-*   The application is now a single-company CRM.
-*   Login and logout functionality is working correctly with the `admin` user (`username: admin`, `password: admin`).
-*   UI has been cleaned up to reflect the single-company model.
-*   All previous blocking issues have been resolved.
-
----
-Session Summary - July 26, 2025
-
-**Customers Module Enhancement:**
-- Updated `schema.sql` to include `properties` and `work_requests` tables.
-- Created new API endpoints in `api/server.js` for `properties` and `work_requests`.
-- Set up Next.js API routes (`app/api/properties/route.ts` and `app/api/work-requests/route.ts`) to proxy these new backend endpoints.
-- Implemented the frontend UI in `app/customers/page.tsx` using ShadCN `Tabs` for Customers, Properties, and Work Requests.
-- Added ShadCN `tabs` component to the project.
-
-**Login Issue Debugging (Persistent Problem):**
-- **Problem:** User unable to log in with `admin/admin` despite previous resolution. API logs show "Invalid credentials" and `bcrypt.compare` returning `false`.
-- **Initial Diagnosis:** Suspected truncated password hash in the database.
-- **Debugging Steps:**
-    - Verified `password` column in `users` table was `VARCHAR(255)` in `schema.sql`.
-    - Changed `password` column to `TEXT` in `schema.sql`.
-    - Performed full Docker cleanup (`docker-compose down -v`) and rebuild (`docker-compose up --build -d`) to ensure schema changes were applied.
-    - Re-inserted `admin` user with a newly generated bcrypt hash.
-    - Verified `password` column type in `db` container (`\d users;`) confirmed `TEXT`.
-    - Retrieved password hash directly from `db` container and `api` container, both showed truncated hashes.
-    - Temporarily bypassed `bcrypt` in `api/server.js` (hardcoded password check) to confirm API functionality (login worked), indicating the issue was with `bcrypt` or database interaction, not core API logic.
-    - Reverted `bcrypt` bypass.
-    - Replaced `bcryptjs` with `bcrypt` package in `package.json` and `api/server.js`.
-    - Generated new bcrypt hash with `bcrypt` and updated database.
-    - Added `client_encoding: 'UTF8'` to PostgreSQL connection in `api/server.js`.
-    - Modified `SELECT` query for user login to explicitly cast `password` column to `TEXT` (`password::TEXT`).
-    - Added debug logs in `api/server.js` to inspect `user.password` and its length after retrieval from DB.
-    - Added `/debug-bcrypt` endpoint to `api/server.js` to test `bcrypt.compare` in isolation within the API container (confirmed `bcrypt.compare` works correctly).
-- **Current State of Login Issue:** The API container consistently retrieves a truncated password hash from the database, despite the `password` column being `TEXT` and `bcrypt.compare` working correctly in isolation. This points to a subtle interaction problem between `node-postgres` and the database, or a caching issue that persists even after full Docker volume removal. The login issue remains unresolved.
-
----
-Session Summary - July 28, 2025
-
-**Login Issue Resolution (Continued):**
-- **Problem:** Persistent "Invalid credentials" or "Internal server error during password comparison" despite `password` column being `TEXT` and `bcrypt.compare` working in isolation. The root cause was identified as the password hash string being corrupted or truncated during storage/retrieval from the PostgreSQL database, specifically losing the leading `$` character required by hashing libraries. This was observed with both `bcrypt` and `argon2`.
-
-- **Debugging Steps & Solutions:**
-    1.  **Initial `bcrypt` troubleshooting:** Extensive attempts to resolve `bcrypt` issues, including verifying `TEXT` column type, explicit casting, and re-inserting hashes. Debugging revealed truncation of the hash upon retrieval.
-    2.  **Switch to `argon2`:** Attempted to switch from `bcrypt` to `argon2` for hashing, as `argon2` is a more modern and robust algorithm.
-        *   `argon2` was added to `package.json` and `api/server.js` was updated to use `argon2.hash` and `argon2.verify`.
-        *   Initial attempts to build Docker containers failed due to `argon2` not being correctly installed in the image (due to `package-lock.json` being out of sync). This was resolved by running `npm install` in the root to update `package-lock.json` and then rebuilding the API container.
-        *   After switching to `argon2`, the error changed to `TypeError: pchstr must contain a $ as first char`, indicating the hash was still being corrupted during database interaction, specifically losing the leading `$` character.
-    3.  **Attempted `BYTEA` column type:** Changed `password` column in `schema.sql` from `TEXT` to `BYTEA` to store raw bytes, hoping to prevent character encoding issues.
-        *   This resulted in the hash being retrieved as a `Buffer` object, but converting it to a string using `Buffer.from().toString()` still resulted in truncation and loss of the leading `$` character.
-    4.  **Final Solution: Base64 Encoding/Decoding:**
-        *   Reverted `password` column in `schema.sql` back to `TEXT`.
-        *   Modified `api/server.js` to **Base64 encode** the `argon2` hash string *before* storing it in the database.
-        *   Modified `api/server.js` to **Base64 decode** the retrieved string *before* passing it to `argon2.verify`.
-        *   This ensured that the `argon2` hash, including its critical leading `$` character, was preserved without alteration during database storage and retrieval.
-
-- **Resolution:** The application now successfully logs in with `admin/admin` using `argon2` for hashing, with the hashes Base64 encoded for reliable storage and retrieval from the PostgreSQL `TEXT` column. This approach ensures data integrity and compatibility with the hashing library.
-
-**Customer Detail Modal Fix:**
-- **Problem:** The `CustomerDetailModal` component was not displaying correctly due to a missing `Dialog` wrapper and incorrect import of `DialogClose`.
-- **Debugging Steps & Solutions:**
-    1.  **Missing `Dialog` wrapper:** The `CustomerDetailModal` component's `return` statement was directly returning `DialogContent` instead of wrapping it within a `Dialog` component.
-    2.  **Incorrect `DialogClose` import:** `DialogClose` was being imported directly, but the component's structure required it to be accessed as a property of `DialogPrimitive` (e.g., `DialogPrimitive.Close`).
-    3.  **Solution:**
-        *   Wrapped the `DialogContent` with the `Dialog` component, passing `isOpen` to the `open` prop and `onClose` to the `onOpenChange` prop.
-        *   Changed the import of `DialogClose` to `import * as DialogPrimitive from "@radix-ui/react-dialog";` and used `DialogPrimitive.Close` in the JSX.
-        *   Performed multiple Docker rebuilds with and without cache to ensure the changes were applied correctly and to rule out caching issues.
-- **Resolution:** The `CustomerDetailModal` now functions as expected, correctly displaying and closing.
+**Customers Module Enhancements (Continued):**
+- **Search and Filtering:**
+    - Added `searchTerm` state to `app/customers/page.tsx` for customer search.
+    - Implemented search functionality in `fetchCustomers` to filter results based on `searchTerm`.
+    - Added a search input field to the UI.
+- **Pagination:**
+    - Added `currentPage` and `itemsPerPage` states to `app/customers/page.tsx` for pagination.
+    - Modified `fetchCustomers` to include `page` and `limit` query parameters.
+    - Added "Previous" and "Next" pagination buttons to the UI.
+- **Input Validation:**
+    - Implemented `validateCustomer` function in `app/customers/page.tsx` to validate customer input (name, email, phone).
+    - Integrated `validateCustomer` into `handleAddCustomer` and `handleUpdateCustomer` to display error messages for invalid input.
+- **UI/UX Enhancements (Loading State):**
+    - Added `loading` state to `app/customers/page.tsx`.
+    - Displayed a loading indicator while fetching customer data.
