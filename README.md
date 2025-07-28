@@ -1,12 +1,13 @@
 # Stone and Sod CRM
 
-This is a web application for lawn maintenance businesses, built with Next.js (App Router), a Node.js/Express.js API, and PostgreSQL, all orchestrated with Docker.
+This is a web application for Stone and Sod Pros, a lawn maintenance business. It's built with Next.js (App Router), a Node.js/Express.js API, and PostgreSQL, all orchestrated with Docker. This version is simplified for a single-company use case.
 
 ## Features
 
+- Single-company application (Stone and Sod Pros).
 - User Roles: Admin, Manager, Crew Lead, Employee.
-- Modules: My Day, KPI Dashboard, Customers, Team, Resources, Equipment, Finances, Reports.
-- Comprehensive data models for customers, properties, jobs, employees, inventory, equipment, invoices, and more.
+- Modules: My Day, KPI Dashboard, Customers, Team, Resources, Equipment, Finances, Reports (future development).
+- Comprehensive data models for customers, properties, jobs, employees, inventory, equipment, invoices, and more (future development).
 
 ## Getting Started
 
@@ -33,15 +34,26 @@ This is a web application for lawn maintenance businesses, built with Next.js (A
 
     *   The database schema will be automatically applied on the first run via `schema.sql`.
 
-3.  **Verify services are running:**
+3.  **Initial Admin Setup:**
 
-    You can check the logs for each service to ensure they started without errors:
+    Since there is no registration flow, you need to manually create the initial admin user in the database.
 
-    ```bash
-    docker-compose logs db
-    docker-compose logs api
-    docker-compose logs nextjs-app
-    ```
+    a.  **Get the PostgreSQL container name:**
+        ```bash
+        docker ps --filter "name=db" --format "{{.Names}}"
+        ```
+        (e.g., `stone-and-sod-crm-db-1`)
+
+    b.  **Enable `pgcrypto` extension (if not already enabled):**
+        ```bash
+        docker exec <your-db-container-name> psql -U user -d stone_sod_crm -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+        ```
+
+    c.  **Insert the admin user:**
+        ```bash
+        docker exec <your-db-container-name> psql -U user -d stone_sod_crm -c "INSERT INTO users (username, password, role, status) VALUES ('admin', crypt('admin', gen_salt('bf')), 'admin', 'active');"
+        ```
+        This creates an admin user with username `admin` and password `admin`.
 
 4.  **Access the application:**
 
@@ -50,16 +62,17 @@ This is a web application for lawn maintenance businesses, built with Next.js (A
 
 ## Project Structure
 
--   `docker-compose.yml`: Defines the multi-service Docker environment.
--   `Dockerfile.api`: Dockerfile for the Node.js/Express.js API.
--   `Dockerfile.nextjs`: Dockerfile for the Next.js frontend application.
--   `schema.sql`: PostgreSQL database schema definition (simplified for single-company use).
+-   `docker-compose.yml`: Defines the multi-service Docker environment, including build arguments for Next.js and no volume mount for the API.
+-   `Dockerfile.api`: Dockerfile for the Node.js/Express.js API, now correctly copying `api/server.js`.
+-   `Dockerfile.nextjs`: Dockerfile for the Next.js frontend application, now correctly handling `NEXT_PUBLIC_API_URL` as a build argument.
+-   `schema.sql`: PostgreSQL database schema definition (simplified, no `companies` or `invitations` tables).
 -   `api/`: Contains the Node.js/Express.js API source code.
-    -   `server.js`: API entry point with simplified user management (no company-specific logic).
+    -   `server.js`: API entry point with simplified user management (no company-specific logic, no registration/invitation routes).
 -   `app/`: Contains the Next.js application source code (App Router).
     -   `layout.tsx`, `page.tsx`, `globals.css`: Core Next.js files.
-    -   `src/app/api/`: API routes for Next.js (if used for internal API).
+    -   `src/app/api/`: API routes for Next.js (e.g., `/api/login`, `/api/verify-token`).
     -   `src/components/`: React components (auth, ui, etc.).
+        -   `layout/Navbar.tsx`: Updated to conditionally display login/logout and remove registration/invitation links.
     -   `src/lib/`: Utility functions and libraries.
     -   `src/styles/`: Global styles.
 -   `package.json`: Consolidated application dependencies.
