@@ -1,0 +1,244 @@
+# 🌿 LawnCRM – Internal Lawn Maintenance Platform (Full-Stack App Development Guide)
+
+## 📌 Overview
+**Purpose**: Build a full-featured internal-use application to manage all aspects of a lawn care and landscaping business.
+
+**Tech Stack**:
+- Frontend: Next.js (ShadCN UI)
+- Backend: Node.js (stand along api server)
+- Database: PostgreSQL (with Prisma ORM)
+- Auth: Local login (custom) or NextAuth
+- Containerization: Docker & Docker Compose
+
+---
+
+## 🧱 Phase 1: Project Setup
+
+### 1. Directory Structure
+```
+lawncrm/
+├── app/                  # Next.js App  frontend
+├── db/                   # Database seed/init
+├── prisma/               # Prisma schema
+├── Dockerfile
+├── docker-compose.yml
+├── .env
+├── README.md
+```
+
+### 2. Initialize Next.js App
+```bash
+npx create-next-app@latest app --ts --app
+cd app
+npm install prisma @prisma/client tailwindcss postcss autoprefixer zod bcrypt
+npx prisma init
+npx tailwindcss init -p
+```
+
+### 3. Docker & Compose
+Set up PostgreSQL and frontend services in `docker-compose.yml`.
+Define Dockerfile to run the app container.
+
+### 4. Environment Setup
+`.env` file should include:
+```
+DATABASE_URL=postgresql://postgres:password@db:5432/lawncrm
+NEXTAUTH_SECRET=...
+```
+
+---
+
+## 🔐 Phase 2: Authentication
+
+- Local login system or NextAuth
+- Hash passwords with bcrypt
+- Users have roles: Admin, Manager, Employee
+- Protect routes with middleware based on role
+
+---
+
+## 📊 My Day Module
+### Purpose:
+Show owner/operator a summary of operations for the day.
+### UI Components:
+- Account standings (e.g. AR summary)
+- Job stats (scheduled, completed)
+- Upcoming tasks
+- Recent payments
+- Meetings
+- Invoices & estimates
+### Logic:
+- Use today's date to filter jobs, payments, and meetings
+- Display in card layout with counts, values, and status badges
+
+---
+
+## 📈 KPI Dashboard
+### Purpose:
+Track internal metrics to measure performance.
+### Metrics:
+- Time to close a lead
+- Close ratio
+- Lead response time
+- Time to get paid (job to payment)
+- Labor efficiency (revenue / hours worked)
+- Number of active employees
+- Number of admin staff
+- Service radius (from property data)
+### UI:
+- Grid of KPI cards
+- Use charts for trends
+### Backend:
+- Aggregate metrics with SQL
+- Use date filters for period comparisons
+
+---
+
+## 👥 Customers Module
+### Tabs:
+#### Customers:
+- List customers, statuses (lead, active, inactive)
+- Create, edit, tag, source field
+#### Properties:
+- Linked to customers
+- Address, lot size, notes
+#### Work Requests:
+- IMAP integration (fetch lead emails)
+- Parse structured content (name, address, service type)
+### UI:
+- Tab layout
+- Property map pinning optional
+### Backend:
+- Email parsing service
+- Customer → Properties 1:M
+
+---
+
+## 👨‍🔧 Team Module
+### Tabs:
+#### Schedule:
+- Employees clock in/out
+- View job list, location, start/stop
+#### Dispatch Board:
+- Admin-only view
+- See jobs by crew/day
+- Assign jobs
+#### Employees:
+- Add/edit users
+- Role, pay model (hourly, % of job, combo), license #
+- Track lifetime cost and revenue contribution
+#### Time Tracking:
+- Daily/weekly time logs
+- Approve/adjust tracked hours
+#### Crews:
+- Define teams with employees
+- Assign crews to jobs
+### UI:
+- Dashboard table and calendars
+- Forms for job/employee editing
+### Backend:
+- Job assignments and crew logic
+- Time log auto-calculation
+
+---
+
+## 📦 Resources Module
+### Tabs:
+#### Items & Services:
+- CRUD for services (mowing, weed control, mulch install)
+- Unit type (per job, sq ft, acre)
+- Default rate, default duration
+#### Inventory:
+- Consumables like fertilizer, weed killer
+- Fields: item name, unit, quantity, reorder threshold, supplier, cost
+- Forecast need based on property size
+#### Packages:
+- Bundle services
+- Set frequency (weekly mow, quarterly fert)
+- Track active/inactive status
+### Backend:
+- Services to Packages: M:N
+- Inventory link to jobs via service type
+
+---
+
+## 🚚 Equipment Module (Detailed)
+### Entities:
+- Trucks
+- Fuel Logs
+- Maintenance Logs
+### Truck Fields:
+- Name, type, model, registration #, fuel type, mpg, status
+- Cost per gallon, purchase date, purchase price
+- Assigned to crew or employee
+### Fuel Log:
+- Date, gallons, cost, odometer
+### Maintenance Log:
+- Date, vendor, cost, description
+### UI:
+- Truck list with fuel and maintenance summaries
+- Detail view with lifetime costs
+- Add/edit assignment, logs
+### Backend:
+- Aggregate total fuel and maintenance costs
+- Assign/unassign logic
+
+---
+
+## 💵 Finances Module
+### Tabs:
+#### Invoices:
+- Generate with service breakdown
+- Status: draft, sent, paid, overdue
+#### Estimates:
+- Create draft quotes
+- Convert to jobs or invoices
+#### Expenses:
+- Log vendor, cost, category, date
+- Upload receipt image (optional)
+#### Statements:
+- Customer-level invoice/payment history
+- Export PDF/CSV
+#### Payments:
+- Method, amount, linked to invoice
+### Backend:
+- Auto-calculate tax, subtotals
+- Generate monthly revenue summaries
+
+---
+
+## 📊 Reports Module
+### Categories:
+#### Financial:
+- Revenue by customer, crew, city, county
+- P&L, tax liability
+#### Receivables:
+- AR aging
+- Payment method breakdown
+#### Operational:
+- Fuel usage by truck
+- Job cost vs revenue
+#### Other:
+- Lead source report
+- Inactive customers
+- Written off accounts
+### UI:
+- Table + export (CSV/PDF)
+- Filter by date range, team, tag
+### Backend:
+- Raw SQL or Prisma aggregations
+
+---
+
+## 📦 Testing & Seeding
+- Seed script: fake employees, properties, jobs, invoices
+- Use Faker.js or Prisma seed
+
+---
+
+## 🚀 Deployment
+- Docker Compose for full stack
+- PostgreSQL in container
+- Next.js in container
+- Seed DB on startup in dev
+- Production config with env vars, secure auth, backup routines

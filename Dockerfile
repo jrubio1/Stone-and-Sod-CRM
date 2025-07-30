@@ -1,23 +1,21 @@
-# Use the official Node.js 20 image as the base image
-FROM node:20-alpine
 
-# Set the working directory inside the container
-WORKDIR /app
+# Use an official Node.js runtime as a parent image
+FROM node:18-alpine
 
-# Copy package.json and yarn.lock (or package-lock.json) to the working directory
-COPY package.json yarn.lock* ./
+# Set the working directory in the container
+WORKDIR /usr/src/app
 
-# Install dependencies
-RUN yarn install --frozen-lockfile
+# Copy package.json and package-lock.json to the working directory
+COPY app/package*.json ./
 
-# Copy the rest of the application code to the working directory
-COPY . .
+# Install any needed packages
+RUN npm install
 
-# Build the Next.js application
-RUN yarn build
+# Copy the rest of the application's code
+COPY app/ .
 
-# Expose the port Next.js runs on
+# Make port 3000 available to the world outside this container
 EXPOSE 3000
 
-# Command to run the application
-CMD ["yarn", "start"]
+# Run the app when the container launches
+CMD [ "npm", "run", "dev" ]
