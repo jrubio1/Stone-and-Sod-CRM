@@ -6,7 +6,7 @@ const Sidebar = () => {
       <nav>
         <ul>
           <li><a href="#" className="block py-2 px-4 hover:bg-gray-100">Dashboard</a></li>
-          <li><a href="#" className="block py-2 px-4 hover:bg-gray-100">Customers</a></li>
+          <li><a href="/customer" className="block py-2 px-4 hover:bg-gray-100">Customers</a></li>
           <li><a href="#" className="block py-2 px-4 hover:bg-gray-100">Projects</a></li>
         </ul>
       </nav>
