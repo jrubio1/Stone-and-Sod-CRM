@@ -1,3 +1,30 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+:root {
+    --bg-base: #f9fafb;
+    --bg-card: #ffffff;
+    --text-primary: #111827;
+    --text-muted: #6b7280;
+    --border-muted: #e5e7eb;
+    --accent: #22c55e;
+    --accent-hover: #16a34a;
+    --danger: #ef4444;
+    --warning: #facc15;
+  }
+  
+  .dark {
+    --bg-base: #0f172a;
+    --bg-card: #1e293b;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-muted: #334155;
+    --accent: #22c55e;
+    --accent-hover: #16a34a;
+    --danger: #f87171;
+    --warning: #fbbf24;
+  }
+  
+  body {
+    @apply bg-[--bg-base] text-[--text-primary] font-sans antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-semibold text-[--text-primary];
+  }

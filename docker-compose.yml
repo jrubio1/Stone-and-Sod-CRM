@@ -1,28 +1,13 @@
-version: '3.8'
 services:
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  app:
+    build: 
+      context: ./app
     ports:
       - "3000:3000"
-    volumes:
-      - ./app:/usr/src/app
-      - /usr/src/app/node_modules
+    env_file: ./.env
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/lawncrm
-      - NEXTAUTH_SECRET=your_secret
-  db:
-    image: postgres:15
-    restart: always
-    environment:
-      POSTGRES_DB: lawncrm
-      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
+      - ./app:/app
+      - /app/node_modules
+    command: bash -c "PATH=/app/node_modules/.bin:$PATH npm run dev"
