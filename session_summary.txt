@@ -1,0 +1,17 @@
+Session Summary (July 30, 2025):
+
+- Created a new Git branch: `feature/app-layout`.
+- Implemented core layout components in `app/src/components/layout/`:
+    - `Header.tsx`
+    - `Footer.tsx`
+    - `Sidebar.tsx`
+- Integrated these layout components into `app/src/app/layout.tsx` to establish the main application structure, utilizing `AppShell` for content wrapping.
+- Refactored `app/src/app/page.tsx` to remove direct `AppShell` usage, as it is now managed by the root layout.
+- Addressed and resolved several build and linting issues:
+    - Corrected the export type for `AppShell` in `app/src/components/ui/AppShell.tsx` (from named to default and back to default after further debugging).
+    - Created the missing `app/src/components/ui/theme-toggle.tsx` component.
+    - Updated `app/eslint.config.mjs` and `app/tsconfig.json` to properly ignore generated Prisma client files, preventing irrelevant linting and type errors.
+    - Fixed a critical issue with duplicated component definition within `AppShell.tsx`.
+- Developed a new customer management page: `app/src/app/customer/page.tsx`.
+- Updated the navigation in `app/src/components/layout/Sidebar.tsx` to include a link to the new customer page.
+- All changes have been committed and pushed to the `feature/app-layout` branch.
