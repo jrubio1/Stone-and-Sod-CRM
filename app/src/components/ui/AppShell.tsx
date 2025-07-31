@@ -4,7 +4,7 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-const AppShell: React.FC<AppShellProps> = ({ children }) => {
+export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col">
       {/* You can add header, sidebar, etc. here later */}
@@ -15,5 +15,3 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     </div>
   );
 };
-
-export default AppShell;
