@@ -3,7 +3,7 @@ import { Toaster } from 'sonner';
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Sidebar from "@/components/layout/Sidebar";
-import { AppShell } from "@/components/ui/AppShell";
+import AppShell from "@/components/ui/AppShell";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
