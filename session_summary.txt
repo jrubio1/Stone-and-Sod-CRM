@@ -1,17 +1,32 @@
-Session Summary (July 30, 2025):
+## Session Summary (August 1, 2025)
 
-- Created a new Git branch: `feature/app-layout`.
-- Implemented core layout components in `app/src/components/layout/`:
-    - `Header.tsx`
-    - `Footer.tsx`
-    - `Sidebar.tsx`
-- Integrated these layout components into `app/src/app/layout.tsx` to establish the main application structure, utilizing `AppShell` for content wrapping.
-- Refactored `app/src/app/page.tsx` to remove direct `AppShell` usage, as it is now managed by the root layout.
-- Addressed and resolved several build and linting issues:
-    - Corrected the export type for `AppShell` in `app/src/components/ui/AppShell.tsx` (from named to default and back to default after further debugging).
-    - Created the missing `app/src/components/ui/theme-toggle.tsx` component.
-    - Updated `app/eslint.config.mjs` and `app/tsconfig.json` to properly ignore generated Prisma client files, preventing irrelevant linting and type errors.
-    - Fixed a critical issue with duplicated component definition within `AppShell.tsx`.
-- Developed a new customer management page: `app/src/app/customer/page.tsx`.
-- Updated the navigation in `app/src/components/layout/Sidebar.tsx` to include a link to the new customer page.
-- All changes have been committed and pushed to the `feature/app-layout` branch.
+**Goal:** Fix the broken application layout.
+
+**Challenges & Debugging Steps:**
+
+1.  **Initial State:** The application layout was completely broken, with components stacked vertically and unstyled.
+2.  **Tailwind/Styling Investigation:** We spent a significant amount of time investigating the Tailwind CSS and PostCSS configuration, believing it to be the root cause. This was a red herring.
+3.  **Dependency Hell:** We then suspected dependency issues, leading to multiple uninstalls, reinstalls, and version pinning attempts with Tailwind and its related packages. This also did not solve the core problem.
+4.  **The Switch to Chakra UI:** After exhausting all options with the Tailwind-based stack, we made the decision to pivot to a more integrated component library, **Chakra UI**, to simplify the toolchain and eliminate potential conflicts.
+5.  **Chakra UI Integration Issues:** The transition to Chakra UI was not smooth and introduced a series of new, specific errors:
+    *   `Module not found: Can't resolve '@chakra-ui/react'`: Solved by performing a complete, clean reinstall of all dependencies (`rm -rf node_modules package-lock.json` and `docker-compose build --no-cache`).
+    *   `TypeError: Cannot read properties of undefined (reading '_config')`: Solved by creating a dedicated `theme.ts` file and using the `@chakra-ui/next-js` `CacheProvider`.
+    *   `Attempted import error: 'useStyleConfig' is not exported`: This was the most persistent error, caused by incompatible versions between `@chakra-ui/react` and `@chakra-ui/next-js`. The final solution was to pin the exact, known-good versions:
+        *   `@chakra-ui/react`: `2.8.0`
+        *   `@chakra-ui/next-js`: `2.1.5`
+    *   `Build Error: It's currently unsupported to use "export *" in a client boundary`: Solved by adding `@chakra-ui/react` to the `serverExternalPackages` list in `next.config.ts`.
+    *   `Invalid hook call`: This was the final major hurdle, caused by forgetting to add the `'use client'` directive to all components that use Chakra UI. Since Chakra components use hooks, any component that renders them must be a Client Component.
+
+**Resolution:**
+
+After a lengthy and difficult debugging process, the layout is now correctly rendered using a stable Chakra UI foundation. The key takeaways are:
+
+*   **Dependency Versioning is Critical:** Mismatched versions between related packages can cause cryptic and misleading errors.
+*   **Server vs. Client Components:** Understanding the distinction in the Next.js App Router is non-negotiable. Any component using React hooks (which includes most UI libraries) must be explicitly marked with `'use client'`.
+*   **Clean Builds are Essential:** When in doubt, a full dependency wipe and a `--no-cache` Docker rebuild is the most reliable way to solve stubborn dependency issues.
+
+**Outcome:**
+
+*   The application now has a stable layout foundation using Chakra UI.
+*   Project documentation has been updated to reflect the new technology stack.
+*   The codebase is ready for further UI development.

@@ -4,7 +4,7 @@
 **Purpose**: Build a full-featured internal-use application to manage all aspects of a lawn care and landscaping business.
 
 **Tech Stack**:
-- Frontend: Next.js (ShadCN UI)
+- Frontend: Next.js (Chakra UI)
 - Backend: Node.js (stand along api server)
 - Database: PostgreSQL (with Prisma ORM)
 - Auth: Local login (custom) or NextAuth

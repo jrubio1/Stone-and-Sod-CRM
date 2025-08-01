@@ -16,133 +16,100 @@ This document defines the UI/UX, structural, and interaction design language to 
 - Eliminate visual noise and over-design.
 - Display only what is relevant to the current user and context.
 
-### 3. **Modular UI Components with ShadCN UI**
-- **All components should use [ShadCN UI](https://ui.shadcn.com)** as the base library.
-- ShadCN provides accessible, headless, and Tailwind-compatible components.
-- Extend components using our design tokens and Tailwind classes.
-- Reuse: Cards, Tables, Forms, Tabs, Dialogs, Tooltips, Toasts, Skeletons
+### 3. **Modular UI Components with Chakra UI**
+- **All components should use [Chakra UI](https://chakra-ui.com)** as the base library.
+- Chakra UI provides accessible, composable, and themeable components out of the box.
+- Extend components using Chakra's theming capabilities and style props.
+- Reuse: Cards, Tables, Forms, Tabs, Modals, Tooltips, Toasts, Skeletons
 
 ### 4. **Mobile, Tablet, and Desktop Responsive**
 - The app must work seamlessly on iPhones, iPads, and desktop browsers.
 - Prioritize route visibility and time tracking features on small screens.
-- Use responsive grid layouts.
+- Use responsive style props (e.g., `w={{ base: '100%', md: '50%' }}`).
 - Nav drawers collapse into hamburger menus on mobile.
 - Tables should stack vertically on small screens.
 
 ### 5. **Dark Mode and Light Mode**
-- Support system preference via `prefers-color-scheme` media query.
-- Allow manual toggle using ShadCN theme configuration.
+- Support system preference via Chakra UI's built-in color mode functionality.
+- Allow manual toggle using a color mode switcher.
 - Ensure all components have background, text, and border tokens for both modes.
-- Tailwind colors should use CSS variables for dynamic theming:
-  - `bg-primary`, `text-primary`, `border-muted`, etc.
-- Maintain WCAG-compliant contrast in both themes.
+- The theme should define semantic tokens for colors.
 
 ---
 
 ## 🎨 Color Theme & Tokens
 
-Define these as CSS variables and extend in `tailwind.config.js`.
+Define these in the Chakra UI theme file (`src/theme.ts`).
 
 | Token              | Light Mode              | Dark Mode               | Purpose                          |
 |--------------------|--------------------------|--------------------------|----------------------------------|
-| `--bg-base`        | `#f9fafb` (gray-50)      | `#0f172a` (slate-900)    | Page background                  |
-| `--bg-card`        | `#ffffff`                | `#1e293b` (slate-800)    | Cards, modals, tables            |
-| `--text-primary`   | `#111827` (gray-900)     | `#f8fafc` (gray-100)     | Headlines, labels                |
-| `--text-muted`     | `#6b7280` (gray-500)     | `#94a3b8` (slate-400)    | Descriptions, secondary labels   |
-| `--border-muted`   | `#e5e7eb` (gray-200)     | `#334155` (slate-600)    | Input borders, card dividers     |
-| `--accent`         | `#22c55e` (green-500)    | `#22c55e` (green-500)    | Buttons, highlights              |
-| `--accent-hover`   | `#16a34a` (green-600)    | `#16a34a` (green-600)    | Hover states                     |
-| `--danger`         | `#ef4444` (red-500)      | `#f87171` (red-400)      | Delete, errors                   |
-| `--warning`        | `#facc15` (yellow-400)   | `#fbbf24` (yellow-500)   | Warnings                         |
+| `bg.base`          | `#f9fafb` (gray-50)      | `#0f172a` (slate-900)    | Page background                  |
+| `bg.card`          | `#ffffff`                | `#1e293b` (slate-800)    | Cards, modals, tables            |
+| `text.primary`     | `#111827` (gray-900)     | `#f8fafc` (gray-100)     | Headlines, labels                |
+| `text.muted`       | `#6b7280` (gray-500)     | `#94a3b8` (slate-400)    | Descriptions, secondary labels   |
+| `border.muted`     | `#e5e7eb` (gray-200)     | `#334155` (slate-600)    | Input borders, card dividers     |
+| `accent`           | `#22c55e` (green-500)    | `#22c55e` (green-500)    | Buttons, highlights              |
+| `accent-hover`     | `#16a34a` (green-600)    | `#16a34a` (green-600)    | Hover states                     |
+| `danger`           | `#ef4444` (red-500)      | `#f87171` (red-400)      | Delete, errors                   |
+| `warning`        | `#facc15` (yellow-400)   | `#fbbf24` (yellow-500)   | Warnings                         |
 
-All components must use Tailwind classes mapped to these variables.
+All components must use these theme tokens via style props.
 
 ---
 
 ## 🧱 UI Structure Conventions
 
 ### Forms:
-- Use ShadCN `<Form>` with grouped fields and validation
+- Use Chakra UI's `<FormControl>`, `<FormLabel>`, `<Input>`, etc.
 - Required fields marked with an asterisk `*`
-- Inline error messages appear below input
+- Inline error messages using `<FormErrorMessage>`
 - Submit buttons disabled until valid
 
 ### Tables:
-- Use ShadCN `<Table>` with sticky headers, row actions
+- Use Chakra UI's `<Table>` with `<Thead>`, `<Tbody>`, etc.
 - Include sorting icons, filter buttons, and pagination
 - Tables collapse into stacked cards on mobile
 
 ### Navigation:
 - Sidebar for desktop: vertical with icons and labels
-- Drawer menu on mobile/tablet
-- Sub-navigation via horizontal tabs (ShadCN `<Tabs>`)
+- Drawer menu on mobile/tablet (`<Drawer>`)
+- Sub-navigation via horizontal tabs (`<Tabs>`)
 
 ---
 
-## 🧩 Component Tokens (Tailwind CSS)
+## 🧩 Component Style Props (Chakra UI)
 
-| Component        | Class Tokens                                      |
+| Component        | Style Props                                       |
 |------------------|---------------------------------------------------|
-| Button (Primary) | `bg-[--accent] text-white hover:bg-[--accent-hover]` |
-| Button (Outline) | `border border-[--accent] text-[--accent]`        |
-| Card             | `bg-[--bg-card] text-[--text-primary] border border-[--border-muted] rounded-xl p-4 shadow` |
-| Input Field      | `bg-white dark:bg-[--bg-card] border border-[--border-muted] text-[--text-primary] p-2 rounded-md w-full` |
-| Table Row        | `hover:bg-gray-50 dark:hover:bg-gray-800 transition` |
-| Modal            | `fixed inset-0 flex items-center justify-center z-50` |
-| Badge (Status)   | `rounded-full text-xs px-2 py-1 font-medium`      |
+| Button (Primary) | `colorScheme="green"` or `bg="accent" _hover={{ bg: "accent-hover" }}` |
+| Button (Outline) | `variant="outline" colorScheme="green"`           |
+| Card             | `bg="bg.card" color="text.primary" borderWidth="1px" borderColor="border.muted" borderRadius="xl" p={4} boxShadow="md"` |
+| Input Field      | `bg="white" _dark={{ bg: "bg.card" }} borderColor="border.muted" color="text.primary" p={2} borderRadius="md" w="full"` |
+| Table Row        | `_hover={{ bg: "gray.50" }} _dark={{ _hover: { bg: "gray.800" } }} transition="background-color 0.2s"` |
+| Modal            | Use `<Modal>`, `<ModalOverlay>`, `<ModalContent>` |
+| Badge (Status)   | `<Badge> with colorScheme prop`                   |
 
 ---
 
 ## 🔄 Interaction Guidelines
 
 - **Toasts**:
-  - Use ShadCN `<Toast>` component
+  - Use Chakra UI's `useToast` hook
   - Appear top right
   - Auto-dismiss after 4–6 seconds
-  - Use green for success, red for error, gray for info
+  - Use `status` prop: `success`, `error`, `info`
 
 - **Loading States**:
-  - Use `<Skeleton>` or spinner components
+  - Use `<Skeleton>` or `<Spinner>` components
   - Show overlays for full-page async operations
 
 - **Dialogs**:
-  - Must confirm destructive actions (e.g., delete)
+  - Use `<AlertDialog>` for destructive actions (e.g., delete)
   - Esc key and outside click should close
 
 - **Hover & Focus**:
-  - Provide visual feedback (e.g., focus ring, hover border)
+  - Chakra UI provides this out of the box.
   - Must be keyboard accessible
-
----
-
-## 📅 Date/Time Formatting
-- Use `MM/DD/YYYY` for dates
-- 12-hour format for time: `h:mm A` (e.g., 4:30 PM)
-- Timestamps must include created/updated metadata where relevant
-
----
-
-## 🧠 Smart Defaults
-- Job views default to today’s date
-- Forms auto-fill with most used values
-- Autocomplete inputs for customers, employees, trucks, services
-- Filters should persist between page reloads in same session
-
----
-
-## ✍️ Language & Labels
-- Use plain English
-- Avoid jargon unless widely understood in landscaping
-- Use title case for page headers (e.g., "Job Schedule")
-- Use sentence case for form labels and buttons (e.g., "Assign to crew")
-- Error messages should be clear, polite, and helpful
-
----
-
-## 🔒 Security & Access UX
-- Admin-only controls hidden from lower roles
-- Users should only see and access what they are assigned to
-- Forms and actions must enforce role-based validation on both frontend and backend
 
 ---
 
@@ -151,105 +118,25 @@ All components must use Tailwind classes mapped to these variables.
 ### 🧭 Navigation Layout
 
 #### Desktop Sidebar:
-- Fixed left sidebar (`w-60`) with logo at top
-- Vertical list of nav items (icon + label)
-- Sections grouped with headers (e.g., "Operations", "Resources")
-- Highlight active route with background accent (`bg-[--accent]/10`)
+- Fixed left sidebar (`<Box w="250px">`) with logo at top
+- Vertical list of nav items (`<VStack>`)
+- Sections grouped with headers
+- Highlight active route with `_active` style prop
 - Collapsible on smaller desktops
 
 #### Mobile/Tablet Drawer:
-- Hamburger menu in top-left
-- Slide-out drawer (`ShadCN Sheet`) with the same sidebar contents
+- Hamburger menu in top-left (`<IconButton>`)
+- Slide-out drawer (`<Drawer>`) with the same sidebar contents
 - Closes on route change or outside click
-
-#### Top Navbar:
-- Used for mobile + small tablet layouts
-- Contains:
-  - Left: Hamburger icon
-  - Center: Page title or app logo
-  - Right: Theme toggle, user avatar menu
 
 ### 📄 Page Shell
 - Uses a consistent layout wrapper:
-  - `Sidebar + main content + optional topbar`
-- Page title should be `<h1 className="text-2xl font-semibold">`
+  - `<Flex><Sidebar /><Box flex="1"><Header />{children}<Footer /></Box></Flex>`
+- Page title should be `<Heading as="h1" size="xl">`
 - Breadcrumbs optional, placed above title if used
-- Max width: `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`
-- Sections should have vertical spacing `space-y-6`
-
-### 🪟 Cards / Sections
-- Use `Card` component for most content blocks
-- Each section should have a heading + content
-- Sections inside pages should be spaced consistently (`space-y-4` or `gap-6`)
-
-### ⚙️ Page Actions
-- Primary actions (e.g., [+ Add], [Save]) should be top-right on desktop
-- Secondary actions or filters should be top-left or below title
-
-### 🔍 Search and Filters
-- Include when the page lists more than 5–10 items
-- Use ShadCN `<Input />` for search + `<Select />` or checkboxes for filters
-- Group filters into an optional dropdown if many
-
-### 📱 Responsive Behavior
-- All layouts collapse vertically on mobile
-- Tables become cards or stacked lists
-- Filter & action bars wrap or collapse into menu
-
-### Example Desktop Shell:
-```
-+---------------------------------------------------+
-| LOGO       [Dashboard] [Customers] [Finances]     |
-| Sidebar                                           |
-|                                                   |
-|          +------------------------------+         |
-|          | Page Title          [Add New]|         |
-|          +------------------------------+         |
-|          | Filters/Search               |         |
-|          | Card/Table/Content Area     |         |
-|          +------------------------------+         |
-+---------------------------------------------------+
-```
-
-### Example Mobile Shell:
-```
-+----------------------------+
-| ☰ Page Title     ⚙️ 👤      |
-+----------------------------+
-| [Add] [Filter]             |
-|                            |
-| Content stack (Cards)     |
-|                            |
-+----------------------------+
-```
-
-## 🛠 Example Page Layout Template
-
-```
-Page Title (e.g., Trucks & Equipment)
-
-[+ Add Equipment] [Filters Dropdown]
-
----------------------------------------------
-| Name     | Type     | Assigned | Status   | Actions |
-|----------|----------|----------|----------|---------|
-| Truck A  | Truck    | Crew A   | In Use   | [Edit]  |
-| Sprayer1 | Sprayer  | Unassigned | Retired | [View]  |
-
-[Pagination: ◀ 1 2 ▶]
-```
-
-Responsive on mobile:
-```
-Equipment Card
----------------
-Name: Truck A
-Type: Truck
-Assigned: Crew A
-Status: In Use
-[Edit]
-```
+- Max width: `maxW="7xl" mx="auto" px={{ base: 4, md: 6, lg: 8 }}`
+- Sections should have vertical spacing `<VStack spacing={6}>`
 
 ---
 
-This design language ensures any UI built for LawnCRM remains consistent, legible, mobile-compatible, and efficient for internal workflows. All generated interfaces must follow this structure using ShadCN components and TailwindCSS for styling, with light/dark mode support and full responsiveness across iPhone, iPad, and desktop.
+This design language ensures any UI built for LawnCRM remains consistent, legible, mobile-compatible, and efficient for internal workflows. All generated interfaces must follow this structure using Chakra UI for components and styling, with light/dark mode support and full responsiveness across iPhone, iPad, and desktop.

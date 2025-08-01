@@ -1,10 +1,14 @@
-import React from 'react';
+'use client'
+
+import { Box, Text } from '@chakra-ui/react';
 
 const Footer = () => {
   return (
-    <footer className="border-t p-4 text-center text-sm text-gray-500">
-      © {new Date().getFullYear()} My Application
-    </footer>
+    <Box as="footer" borderTopWidth="1px" p={4} textAlign="center">
+      <Text fontSize="sm" color="gray.500">
+        © {new Date().getFullYear()} My Application
+      </Text>
+    </Box>
   );
 };
 

@@ -1,16 +1,16 @@
-import React from 'react';
+'use client'
+
+import { Box, VStack, Link } from '@chakra-ui/react';
 
 const Sidebar = () => {
   return (
-    <aside className="w-64 border-r p-4">
-      <nav>
-        <ul>
-          <li><a href="#" className="block py-2 px-4 hover:bg-gray-100">Dashboard</a></li>
-          <li><a href="/customer" className="block py-2 px-4 hover:bg-gray-100">Customers</a></li>
-          <li><a href="#" className="block py-2 px-4 hover:bg-gray-100">Projects</a></li>
-        </ul>
-      </nav>
-    </aside>
+    <Box as="aside" w="250px" borderRightWidth="1px" p={4}>
+      <VStack as="nav" spacing={4} align="stretch">
+        <Link href="#">Dashboard</Link>
+        <Link href="/customer">Customers</Link>
+        <Link href="#">Projects</Link>
+      </VStack>
+    </Box>
   );
 };
 
