@@ -9,5 +9,6 @@ services:
       POSTGRES_PASSWORD: password
     volumes:
       - ./app:/app
+      - ./prisma:/app/prisma
       - /app/node_modules
     command: bash -c "PATH=/app/node_modules/.bin:$PATH npm run dev"

@@ -1,21 +1,38 @@
 'use client'
 
-import { Box, Flex } from '@chakra-ui/react';
-import Header from '@/components/layout/Header';
-import Sidebar from '@/components/layout/Sidebar';
-import Footer from '@/components/layout/Footer';
+import { useEffect } from 'react'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { Box, Heading, Spinner, Center } from '@chakra-ui/react'
 
 export default function Page() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (status === 'loading') return // Do nothing while loading
+
+    if (!session) {
+      router.push('/login')
+    }
+  }, [session, status, router])
+
+  if (status === 'loading') {
+    return (
+      <Center h="100vh">
+        <Spinner size="xl" />
+      </Center>
+    )
+  }
+
+  if (!session) {
+    return null // Will be redirected by useEffect
+  }
+
   return (
-    <Flex direction="column" minH="100vh">
-      <Header />
-      <Flex flex="1">
-        <Sidebar />
-        <Box as="main" flex="1" p={4}>
-          {/* Your page content goes here */}
-        </Box>
-      </Flex>
-      <Footer />
-    </Flex>
-  );
+    <Box p={8}>
+      <Heading as="h1" size="xl">Dashboard</Heading>
+      <p>Welcome to LawnCRM, {session.user?.email}!</p>
+    </Box>
+  )
 }

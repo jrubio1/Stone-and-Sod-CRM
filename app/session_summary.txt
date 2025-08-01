@@ -1,0 +1,23 @@
+## Session Summary (August 1, 2025 - Continued)
+
+**Goal:** Implement authentication and fix layout issues.
+
+**Challenges & Debugging Steps:**
+
+1.  **Layout Fix:** The layout was finally fixed by correctly structuring `app/src/app/layout.tsx` to include `Header`, `Sidebar`, and `Footer` components, and ensuring all components using Chakra UI were marked with `'use client'`.
+2.  **Authentication Setup:**
+    *   Added `User` model to Prisma schema and migrated the database.
+    *   Installed `next-auth`.
+    *   Created NextAuth API route (`app/api/auth/[...nextauth]/route.ts`) with Credentials Provider.
+    *   Created a basic login page (`app/src/app/login/page.tsx`).
+    *   Wrapped the application with `SessionProvider` in `app/src/app/layout.tsx`.
+    *   Created a `seed.ts` script to add a test user (`admin@example.com`, `password123`).
+    *   Moved `app/login` to `app/src/app/login` to resolve 404 errors.
+3.  **Persistent `useMemo` Error:** This error continued to appear intermittently. The solution involved ensuring `SessionProvider` wrapped `ChakraProvider` directly in `layout.tsx`.
+4.  **Authentication Bypass (Still Unresolved):** Despite implementing `middleware.ts` to protect routes (`/` and `/customer/:path*`), the application still allows direct access to `/customer` without authentication. This is a critical security vulnerability that needs further investigation.
+
+**Current Status:**
+
+*   Application layout is correct.
+*   Login page is accessible and functional (user can log in).
+*   **Authentication bypass remains an issue.**

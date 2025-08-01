@@ -1,8 +1,15 @@
 'use client'
 
+import { useSession } from 'next-auth/react'
 import { Box, VStack, Link } from '@chakra-ui/react';
 
 const Sidebar = () => {
+  const { data: session } = useSession()
+
+  if (!session) {
+    return null // Don't render sidebar if not authenticated
+  }
+
   return (
     <Box as="aside" w="250px" borderRightWidth="1px" p={4}>
       <VStack as="nav" spacing={4} align="stretch">
