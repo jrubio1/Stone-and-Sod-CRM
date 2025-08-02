@@ -14,7 +14,9 @@ const handler = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        console.log("Authorize callback - credentials:", credentials);
         if (!credentials) {
+          console.log("Authorize callback - no credentials provided.");
           return null
         }
 
@@ -23,8 +25,10 @@ const handler = NextAuth({
         })
 
         if (user && (await bcrypt.compare(credentials.password, user.password))) {
+          console.log("Authorize callback - user found and password matched:", user.email);
           return { id: user.id, email: user.email, role: user.role }
         } else {
+          console.log("Authorize callback - user not found or password mismatch.");
           return null
         }
       },
@@ -32,12 +36,14 @@ const handler = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
+      console.log("JWT callback - token:", token, "user:", user);
       if (user) {
         token.role = user.role
       }
       return token
     },
     async session({ session, token }) {
+      console.log("Session callback - session:", session, "token:", token);
       if (session.user) {
         session.user.role = token.role
       }

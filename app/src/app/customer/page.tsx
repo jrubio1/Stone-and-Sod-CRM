@@ -1,8 +1,31 @@
 'use client'
 
-import { Box, Button, Flex, Heading, Tabs, TabList, TabPanels, Tab, TabPanel, Table, Thead, Tbody, Tr, Th, Td } from '@chakra-ui/react';
+import { Box, Button, Flex, Heading, Tabs, TabList, TabPanels, Tab, TabPanel, Table, Thead, Tbody, Tr, Th, Td, Spinner, Center } from '@chakra-ui/react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 
 export default function CustomerPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const authToken = Cookies.get('auth_token');
+    if (!authToken) {
+      router.push('/login');
+    } else {
+      setLoading(false);
+    }
+  }, [router]);
+
+  if (loading) {
+    return (
+      <Center h="100vh">
+        <Spinner size="xl" />
+      </Center>
+    );
+  }
+
   return (
     <Box p={8}>
       <Flex justifyContent="space-between" alignItems="center" mb={6}>

@@ -4,11 +4,39 @@ services:
       context: ./app
     ports:
       - "3000:3000"
-    env_file: ./.env
+    env_file: ./app/.env
     environment:
       POSTGRES_PASSWORD: password
     volumes:
-      - ./app:/app
       - ./prisma:/app/prisma
-      - /app/node_modules
-    command: bash -c "PATH=/app/node_modules/.bin:$PATH npm run dev"
+    command: npm run dev
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "5001:5000"
+    env_file: ./app/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/lawncrm
+      JWT_SECRET: your_jwt_secret
+    volumes:
+      - ./backend:/app
+    command: npm start
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: lawncrm
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  db-data:

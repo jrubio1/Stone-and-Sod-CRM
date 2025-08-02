@@ -1,0 +1,12 @@
+# Logs
+*.log
+
+# Environment files
+.env
+.env*.local
+
+# OS generated files
+.DS_Store
+
+# Dependency directories
+node_modules/

@@ -5,9 +5,9 @@
 
 **Tech Stack**:
 - Frontend: Next.js (Chakra UI)
-- Backend: Node.js (stand along api server)
+- Backend: Node.js (Express.js API)
 - Database: PostgreSQL (with Prisma ORM)
-- Auth: Local login (custom) or NextAuth
+- Auth: Custom JWT (backend) & Client-side cookie management (frontend)
 - Containerization: Docker & Docker Compose
 
 ---
@@ -18,6 +18,7 @@
 ```
 lawncrm/
 ├── app/                  # Next.js App  frontend
+├── backend/              # Node.js/Express.js API backend
 ├── db/                   # Database seed/init
 ├── prisma/               # Prisma schema
 ├── Dockerfile
@@ -36,24 +37,26 @@ npx tailwindcss init -p
 ```
 
 ### 3. Docker & Compose
-Set up PostgreSQL and frontend services in `docker-compose.yml`.
-Define Dockerfile to run the app container.
+Set up PostgreSQL, frontend, and backend services in `docker-compose.yml`.
+Define Dockerfiles for app and backend containers.
 
 ### 4. Environment Setup
-`.env` file should include:
+`.env` file (in `app/`) should include:
 ```
 DATABASE_URL=postgresql://postgres:password@db:5432/lawncrm
-NEXTAUTH_SECRET=...
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_secret
+JWT_SECRET=your_jwt_secret
 ```
 
 ---
 
 ## 🔐 Phase 2: Authentication
 
-- Local login system or NextAuth
-- Hash passwords with bcrypt
+- Custom JWT-based authentication in the backend.
+- Client-side cookie management for session handling.
+- Protect routes with client-side checks and backend middleware.
 - Users have roles: Admin, Manager, Employee
-- Protect routes with middleware based on role
 
 ---
 

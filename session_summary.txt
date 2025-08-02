@@ -1,32 +1,33 @@
-## Session Summary (August 1, 2025)
+## Session Summary: Decoupling Authentication (August 1, 2025)
 
-**Goal:** Fix the broken application layout.
+**Goal:** Decouple frontend (Next.js) and backend (new Express.js API) authentication to resolve persistent NextAuth.js and Docker-related issues, and implement client-side route protection.
 
-**Challenges & Debugging Steps:**
+**Key Changes & Learnings:**
 
-1.  **Initial State:** The application layout was completely broken, with components stacked vertically and unstyled.
-2.  **Tailwind/Styling Investigation:** We spent a significant amount of time investigating the Tailwind CSS and PostCSS configuration, believing it to be the root cause. This was a red herring.
-3.  **Dependency Hell:** We then suspected dependency issues, leading to multiple uninstalls, reinstalls, and version pinning attempts with Tailwind and its related packages. This also did not solve the core problem.
-4.  **The Switch to Chakra UI:** After exhausting all options with the Tailwind-based stack, we made the decision to pivot to a more integrated component library, **Chakra UI**, to simplify the toolchain and eliminate potential conflicts.
-5.  **Chakra UI Integration Issues:** The transition to Chakra UI was not smooth and introduced a series of new, specific errors:
-    *   `Module not found: Can't resolve '@chakra-ui/react'`: Solved by performing a complete, clean reinstall of all dependencies (`rm -rf node_modules package-lock.json` and `docker-compose build --no-cache`).
-    *   `TypeError: Cannot read properties of undefined (reading '_config')`: Solved by creating a dedicated `theme.ts` file and using the `@chakra-ui/next-js` `CacheProvider`.
-    *   `Attempted import error: 'useStyleConfig' is not exported`: This was the most persistent error, caused by incompatible versions between `@chakra-ui/react` and `@chakra-ui/next-js`. The final solution was to pin the exact, known-good versions:
-        *   `@chakra-ui/react`: `2.8.0`
-        *   `@chakra-ui/next-js`: `2.1.5`
-    *   `Build Error: It's currently unsupported to use "export *" in a client boundary`: Solved by adding `@chakra-ui/react` to the `serverExternalPackages` list in `next.config.ts`.
-    *   `Invalid hook call`: This was the final major hurdle, caused by forgetting to add the `'use client'` directive to all components that use Chakra UI. Since Chakra components use hooks, any component that renders them must be a Client Component.
+*   **Backend API (Express.js + JWT):**
+    *   Created a new `backend/` service with Express.js, `jsonwebtoken`, `bcrypt`, `cors`, and `dotenv`.
+    *   Configured `backend/tsconfig.json` and `backend/package.json` for TypeScript development and `npm start` script.
+    *   Added `backend` service to `docker-compose.yml` (port 5001, depends on `db`).
+    *   **Watch out for:** Port conflicts (resolved by changing backend port to 5001).
 
-**Resolution:**
+*   **Frontend (Next.js):**
+    *   **Removed NextAuth.js:** Uninstalled `next-auth` from `app/package.json` and removed all related imports and logic from `app/src/app/providers.tsx`, `app/src/app/layout.tsx`, and `app/src/app/api/auth/[...nextauth]/route.ts`.
+    *   **Removed Next.js Middleware:** `app/middleware.ts` was removed as it was not being picked up correctly and is no longer needed with client-side protection.
+    *   **Client-Side Route Protection:** Implemented `useEffect` in `app/src/app/customer/page.tsx` to check for an `auth_token` cookie and redirect to `/login` if not present.
+    *   **Updated Login/Logout:** Modified `app/src/app/login/page.tsx` to set a dummy `auth_token` cookie on login and `app/components/LogoutButton.tsx` to clear it on logout. Installed `js-cookie`.
+    *   **Fixed `react-icons`:** Resolved `Module not found` error by adjusting `app/tsconfig.json` paths to include the root `app` directory (`./*`) for component imports.
+    *   **Fixed Logout Button Visibility:** Ensured `LogoutButton` is hidden on the login page by checking `router.pathname` in `app/src/components/layout/Header.tsx`.
+    *   **Watch out for:** Next.js caching issues in Docker (resolved by aggressive pruning and `docker-compose build --no-cache`).
 
-After a lengthy and difficult debugging process, the layout is now correctly rendered using a stable Chakra UI foundation. The key takeaways are:
+**Current Status:**
+*   Backend, frontend, and database containers are running.
+*   Frontend dashboard is visible.
+*   `/customer` page is protected by client-side logic.
+*   Login and logout functionality (dummy) is working.
+*   Logout button visibility is correct.
 
-*   **Dependency Versioning is Critical:** Mismatched versions between related packages can cause cryptic and misleading errors.
-*   **Server vs. Client Components:** Understanding the distinction in the Next.js App Router is non-negotiable. Any component using React hooks (which includes most UI libraries) must be explicitly marked with `'use client'`.
-*   **Clean Builds are Essential:** When in doubt, a full dependency wipe and a `--no-cache` Docker rebuild is the most reliable way to solve stubborn dependency issues.
-
-**Outcome:**
-
-*   The application now has a stable layout foundation using Chakra UI.
-*   Project documentation has been updated to reflect the new technology stack.
-*   The codebase is ready for further UI development.
+**Next Steps (for future LLM):**
+*   Implement actual authentication in the backend (login endpoint, JWT generation/validation).
+*   Integrate frontend login/logout with the new backend API.
+*   Implement protected API routes in the backend.
+*   Replace placeholder user data in frontend with data from the backend.
